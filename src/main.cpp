@@ -2,23 +2,27 @@
 #include <TMC2209.h>
 #include <AccelStepper.h>
 #include <L293D.h>
+#include "EEPROM-Storage.h"
 
 HardwareSerial & serial_stream = Serial3;
 
 // current values may need to be reduced to prevent overheating depending on
 // specific motor and power supply voltage
-const uint8_t RUN_CURRENT_PERCENT = 100;
+EEPROMStorage<uint8_t> RUN_CURRENT_PERCENT(0, 100);
 
-const uint32_t STEPS_PER_MM = 320;
-const uint32_t MAX_TRAVEL = (STEPS_PER_MM * 120);
-const uint32_t MAX_SPEED = (STEPS_PER_MM * 5);
-const uint32_t HOMING_SPEED = (STEPS_PER_MM * 1);
-const uint32_t MAX_ACCELERATION = (STEPS_PER_MM * 15);
+EEPROMStorage<uint32_t> STEPS_PER_MM(2,320);
+EEPROMStorage<uint32_t> MAX_TRAVEL(7, STEPS_PER_MM * 120);
+EEPROMStorage<uint32_t> MAX_SPEED(12, STEPS_PER_MM * 5);
+EEPROMStorage<uint32_t> HOMING_SPEED(17, STEPS_PER_MM * 1);
+EEPROMStorage<uint32_t> MAX_ACCELERATION(22, STEPS_PER_MM * 15);
+EEPROMStorage<uint16_t> VACUUM_DELAY(27, 400);
+EEPROMStorage<uint16_t> PROBE_DELAY(30, 500);
+EEPROMStorage<uint16_t> CLAMP_DELAY(33, 300);
 
 
 
 // Pinout
-const uint8_t pin_ValveVaccum       = 42; 
+const uint8_t pin_ValveVacuum       = 42; 
 const uint8_t pin_ValveProbe        = 44; 
 const uint8_t pin_ValveClampSmall   = 46; 
 const uint8_t pin_ValveClampBig     = 48;
@@ -35,6 +39,7 @@ const uint8_t pin_VacuumSensor      = A0;
 enum StateENUM{
   RESET,
   ERROR,
+  FIRST_LABEL,
   NEXT_LABEL,
   IDLE
 } state;
@@ -44,6 +49,9 @@ TMC2209 stepper_driver;
 AccelStepper stepper(AccelStepper::DRIVER, 2, 3);
 
 L293D swingDriver(7, 8, 9);
+
+String readBuf;
+bool firstAfterRestart = true;
 
 
 void deployProbe();
@@ -57,10 +65,10 @@ enum HomingENUM{ Probe, Z_Max, Z_Min };
 uint8_t checkEndstops(HomingENUM sensor);
 
 // sensor -> { Probe, Z_Max, Z_Min }
-// return : false -> OK, true -> NG
+// return : false -> NG, true -> OK
 bool stepperHomeTo(HomingENUM sensor);
 
-// return : false -> OK, true -> NG
+// return : false -> NG, true -> OK
 bool rotateSwing(bool toRight, bool checkVacuum = false);
 
 void deployClamp();
@@ -93,14 +101,14 @@ void setup()
     return;
   }
 
-  //Stepper Accelaration Config
+  //Stepper Acceleration Config
   stepper.setEnablePin(4);
   stepper.setMaxSpeed(MAX_SPEED);
   stepper.setAcceleration(MAX_ACCELERATION);
 
   swingDriver.begin(true);
 
-  pinMode(pin_ValveVaccum,      OUTPUT);
+  pinMode(pin_ValveVacuum,      OUTPUT);
   pinMode(pin_ValveProbe,       OUTPUT);
   pinMode(pin_ValveClampSmall,  OUTPUT);
   pinMode(pin_ValveClampBig,    OUTPUT);
@@ -119,36 +127,89 @@ void loop()
 switch (state) {
 case RESET:
   retractClamp();
-  digitalWrite(pin_ValveVaccum, HIGH);
-  if (rotateSwing(true) == 1) {
+  retractProbe();
+  digitalWrite(pin_ValveVacuum, LOW);
+  if (!rotateSwing(true)) {
     state = ERROR;
     Serial.println("ERROR: Swing Blocked");
-    return;
+    break;
   }
-  if (stepperHomeTo(HomingENUM::Z_Min) == 1) {
+  if (!stepperHomeTo(HomingENUM::Z_Min)) {
     state = ERROR;
     Serial.println("ERROR: Homing Failed");
-    return;
+    break;
   }
-
+  firstAfterRestart = true;
   state = IDLE;
 
   break;
 case NEXT_LABEL:
+  retractClamp();
+  if (!rotateSwing(false)) {
+    state = ERROR;
+    Serial.println("ERROR: Swing Blocked");
+    break;
+  }
+  digitalWrite(pin_ValveVacuum, HIGH);
+  delay(VACUUM_DELAY);
+  if (!rotateSwing(true)) {
+    state = ERROR;
+    Serial.println("ERROR: Swing Blocked");
+    break;
+  }
+  digitalWrite(pin_ValveVacuum, LOW);
+  delay(VACUUM_DELAY);
   
+case FIRST_LABEL:
+  deployProbe();
+  if (!stepperHomeTo(HomingENUM::Probe)) {
+    state = ERROR;
+    Serial.println("ERROR: Homing to Probe Failed");
+    return;
+  }
+  deployClamp();
+  retractProbe();
+  Serial.println("READY");
   
-  
-  
+  firstAfterRestart = false;
+  state = IDLE;
   break;
+
 case ERROR:
-  
-  
-  
-  
+  retractClamp();
+  retractProbe();
+  digitalWrite(pin_ValveVacuum, LOW);
+
+  firstAfterRestart = true;
+
+  while(state != RESET){
+    Serial.println("STATE: ERROR | send 'RESET' to continue");
+    Serial.print("CMD> ");
+    readBuf = Serial.readString();
+    readBuf.trim();
+
+    if(readBuf.equals("RESET")) state = RESET;
+  }
+
+
   break;
 case IDLE:
-  Serial.print("STATE: IDLE");
-  break;
+  Serial.println("STATE: IDLE");
+  Serial.print("CMD> ");
+  readBuf = Serial.readString();
+  readBuf.trim();
+  if(readBuf.equals("RESET")) {
+    state = RESET;
+    break;
+  } else 
+  if (readBuf.equals("NEXT_LABEL"))
+  {
+    state = firstAfterRestart ? FIRST_LABEL : NEXT_LABEL;
+    break;
+  } else {
+    state = ERROR;
+    break;
+  }
 default:
   break;
 }
@@ -159,12 +220,12 @@ default:
 
 void deployProbe() {
   digitalWrite(pin_ValveProbe, HIGH);
-  delay(300);
+  delay(PROBE_DELAY);
 }
 
 void retractProbe() {
   digitalWrite(pin_ValveProbe, LOW);
-  delay(300);
+  delay(PROBE_DELAY);
 }
 
 uint8_t checkEndstops(HomingENUM sensor){
@@ -186,7 +247,7 @@ uint8_t checkEndstops(HomingENUM sensor){
   return 0;
 }
 
-// HomingENUM{ Probe, Z_Max, Z_Min }
+
 bool stepperHomeTo(HomingENUM sensor) {
   uint8_t pin;
   bool dir;
@@ -207,7 +268,7 @@ bool stepperHomeTo(HomingENUM sensor) {
     stepper.run();
   };
 
-  if (stepper.currentPosition() == stepper.targetPosition() || checkEndstops(sensor) == 2) return true;
+  if (stepper.currentPosition() == stepper.targetPosition() || checkEndstops(sensor) == 2) return false;
   stepper.moveTo(stepper.currentPosition());
   stepper.runToPosition();
 
@@ -220,13 +281,13 @@ bool stepperHomeTo(HomingENUM sensor) {
 
   stepper.setMaxSpeed(MAX_TRAVEL);
 
-  if (stepper.currentPosition() == stepper.targetPosition()) return true;
+  if (stepper.currentPosition() == stepper.targetPosition()) return false;
 
   stepper.setCurrentPosition(0);
-  return false;
+  return true;
 }
 
-bool rotateSwing(bool toRight, bool checkVacuum = false) {
+bool rotateSwing(bool toRight, bool checkVacuum) {
   uint32_t time = millis();
 
   swingDriver.SetMotorSpeed(toRight ? 50 : -50);
@@ -234,25 +295,23 @@ bool rotateSwing(bool toRight, bool checkVacuum = false) {
     if (digitalRead(toRight ? pin_EndstopR_Max : pin_EndstopR_Min) == LOW) {
         delay(100);
         swingDriver.Stop();
-        return false;
+        return true;
     };
   }
-  return true;
-
-
+  return false;
 
 }
 
 void deployClamp() {
   digitalWrite(pin_ValveClampSmall, HIGH);
-  delay(200);
+  delay(CLAMP_DELAY);
   digitalWrite(pin_ValveClampBig, HIGH);
-  delay(200);
+  delay(CLAMP_DELAY);
 }
 
 void retractClamp(){
-  digitalWrite(pin_ValveClampSmall, LOW);
-  delay(200);
   digitalWrite(pin_ValveClampBig, LOW);
-  delay(200);
+  delay(CLAMP_DELAY);
+  digitalWrite(pin_ValveClampSmall, LOW);
+  delay(CLAMP_DELAY);
 }
