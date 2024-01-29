@@ -2,7 +2,9 @@
 #include <TMC2209.h>
 #include <AccelStepper.h>
 #include <L293D.h>
+#include <ArduinoJson.h>
 #include "EEPROM-Storage.h"
+
 
 HardwareSerial & serial_stream = Serial3;
 
@@ -14,7 +16,7 @@ EEPROMStorage<uint32_t> STEPS_PER_MM(2,320);
 EEPROMStorage<uint32_t> MAX_TRAVEL(7, STEPS_PER_MM * 120);
 EEPROMStorage<uint32_t> MAX_SPEED(12, STEPS_PER_MM * 5);
 EEPROMStorage<uint32_t> HOMING_SPEED(17, STEPS_PER_MM * 1);
-EEPROMStorage<uint32_t> MAX_ACCELERATION(22, STEPS_PER_MM * 15);
+EEPROMStorage<uint32_t> MAX_ACCELERATION(22, STEPS_PER_MM * 300);
 EEPROMStorage<uint16_t> VACUUM_DELAY(27, 400);
 EEPROMStorage<uint16_t> PROBE_DELAY(30, 500);
 EEPROMStorage<uint16_t> CLAMP_DELAY(33, 300);
@@ -74,12 +76,16 @@ bool rotateSwing(bool toRight, bool checkVacuum = false);
 void deployClamp();
 void retractClamp();
 
+void parseJSON();
+
 
 
 void setup()
 {
 
   Serial.begin(115200);
+  Serial.setTimeout(60000);
+  while (Serial.availableForWrite() == 0) {}
 
   //Stepper Driver config
   stepper_driver.setup(serial_stream);
@@ -98,7 +104,6 @@ void setup()
   if (not stepper_driver.isSetupAndCommunicating())
   {
     Serial.println("Stepper driver not setup and communicating!");
-    return;
   }
 
   //Stepper Acceleration Config
@@ -118,6 +123,8 @@ void setup()
   pinMode(pin_EndstopZ_Max,     INPUT);
   pinMode(pin_EndstopZ_Min,     INPUT);
   pinMode(pin_HomingSensor,     INPUT); 
+
+  state = ERROR;
 }
 
 void loop()
@@ -185,7 +192,10 @@ case ERROR:
   while(state != RESET){
     Serial.println("STATE: ERROR | send 'RESET' to continue");
     Serial.print("CMD> ");
-    readBuf = Serial.readString();
+    while (Serial.available() == 0) {}
+    readBuf = Serial.readStringUntil('\n');
+    Serial.println();
+    
     readBuf.trim();
 
     if(readBuf.equals("RESET")) state = RESET;
@@ -196,8 +206,11 @@ case ERROR:
 case IDLE:
   Serial.println("STATE: IDLE");
   Serial.print("CMD> ");
-  readBuf = Serial.readString();
+  while (Serial.available() == 0) {}
+  readBuf = Serial.readStringUntil('\n');
+  Serial.println();
   readBuf.trim();
+
   if(readBuf.equals("RESET")) {
     state = RESET;
     break;
@@ -206,7 +219,11 @@ case IDLE:
   {
     state = firstAfterRestart ? FIRST_LABEL : NEXT_LABEL;
     break;
-  } else {
+  } else if (readBuf.equals("JSON")) {
+    parseJSON();
+    break;
+  }else {
+    Serial.println("ERROR: Unknown command");
     state = ERROR;
     break;
   }
@@ -314,4 +331,42 @@ void retractClamp(){
   delay(CLAMP_DELAY);
   digitalWrite(pin_ValveClampSmall, LOW);
   delay(CLAMP_DELAY);
+}
+
+void parseJSON() {
+JsonDocument doc;
+
+doc["RUN_CURRENT_PERCENT"] = RUN_CURRENT_PERCENT.get();
+doc["STEPS_PER_MM"] = STEPS_PER_MM.get();
+doc["MAX_TRAVEL"] = MAX_TRAVEL.get();
+doc["MAX_SPEED"] = MAX_SPEED.get();
+doc["HOMING_SPEED"] = HOMING_SPEED.get();
+doc["MAX_ACCELERATION"] = MAX_ACCELERATION.get();
+doc["VACUUM_DELAY"] = VACUUM_DELAY.get();
+doc["PROBE_DELAY"] = PROBE_DELAY.get();
+doc["CLAMP_DELAY"] = CLAMP_DELAY.get();
+
+serializeJson(doc, Serial);
+Serial.println();
+
+DeserializationError error = deserializeJson(doc, Serial);
+
+if (error) {
+  Serial.print(F("deserializeJson() failed: "));
+  Serial.println(error.f_str());
+  return;
+} else {
+  Serial.println("OK.");
+}
+
+RUN_CURRENT_PERCENT.set(doc["RUN_CURRENT_PERCENT"].as<uint8_t>());
+STEPS_PER_MM.set(doc["STEPS_PER_MM"].as<uint32_t>());
+MAX_TRAVEL.set(doc["MAX_TRAVEL"].as<uint32_t>());
+MAX_SPEED.set(doc["MAX_SPEED"].as<uint32_t>());
+HOMING_SPEED.set(doc["HOMING_SPEED"].as<uint32_t>());
+MAX_ACCELERATION.set(doc["MAX_ACCELERATION"].as<uint32_t>());
+VACUUM_DELAY.set(doc["VACUUM_DELAY"].as<uint16_t>());
+PROBE_DELAY.set(doc["PROBE_DELAY"].as<uint16_t>());
+CLAMP_DELAY.set(doc["CLAMP_DELAY"].as<uint16_t>());
+
 }

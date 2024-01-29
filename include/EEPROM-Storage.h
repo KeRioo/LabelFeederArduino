@@ -302,7 +302,7 @@ class EEPROMStorage
     // ***
     void unset(byte unsetValue = 0xff)
     {
-      for ( int i = 0; i < this->length(); i++)
+      for ( uint16_t i = 0; i < this->length(); i++)
       {
         EEPROM.update(this->_address + i, unsetValue);
       }
@@ -341,7 +341,7 @@ class EEPROMStorage
     // ***
     void copyTo(byte* data, uint32_t length)
     {
-      for (int i = 0; i < length; i++)
+      for (uint16_t i = 0; i < length; i++)
       {
         data[i] = EEPROM[this->_address + i];
       }

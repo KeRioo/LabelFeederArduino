@@ -48,7 +48,7 @@ class Checksum
       }
       else
       {
-        for (int i = 0; i < length ; i++)
+        for (uint16_t i = 0; i < length ; i++)
         {
           byte b = data[i];
           returnValue ^= b;
