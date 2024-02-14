@@ -34,7 +34,7 @@
 #endif
 
 // ***
-// *** Maximum buffer size to use when transfering
+// *** Maximum buffer size to use when transferring
 // *** the EEPROM contents to a byte array.
 // ***
 #define MAX_VARIABLE_LENGTH 16
@@ -93,7 +93,7 @@ class EEPROMStorage
     }
 
     // ***
-    // *** -- postifx
+    // *** -- postfix
     // ***
     T operator -- (int)
     {
@@ -288,7 +288,7 @@ class EEPROMStorage
     // *** Returns the number of EEPROM bytes
     // *** used by this instance.
     // ***
-    uint16_t length()
+    uint16_t length() const
     {
       // ***
       // *** The extra byte is the checksum byte.
@@ -311,7 +311,7 @@ class EEPROMStorage
     // ***
     // *** Gets the address of the checksum byte.
     // ***
-    uint16_t checksumAddress()
+    uint16_t checksumAddress() const
     {
       return this->_address + this->length() - 1;
     }
@@ -325,10 +325,10 @@ class EEPROMStorage
     }
 
     // ***
-    // *** Calcuate the checksum of the
+    // *** Calculate the checksum of the
     // *** data in the EEPROM for this instance.
     // ***
-    uint8_t checksum()
+    uint8_t checksum() 
     {
       byte data[MAX_VARIABLE_LENGTH];
       this->copyTo(data, sizeof(T));
