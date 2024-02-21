@@ -13,7 +13,7 @@ EEPROMStorage<uint8_t> RUN_CURRENT_PERCENT(0, 100);
 
 EEPROMStorage<uint32_t> STEPS_PER_MM(2, 160);
 EEPROMStorage<uint32_t> MAX_TRAVEL(7, STEPS_PER_MM * 120);
-EEPROMStorage<uint32_t> MAX_SPEED(12, STEPS_PER_MM * 50);
+EEPROMStorage<uint32_t> MAX_SPEED(12, STEPS_PER_MM * 15);
 EEPROMStorage<uint32_t> HOMING_SPEED(17, STEPS_PER_MM * 3);
 EEPROMStorage<uint32_t> MAX_ACCELERATION(22, STEPS_PER_MM * 2500);
 EEPROMStorage<uint16_t> VACUUM_DELAY(27, 400);
@@ -217,6 +217,12 @@ void loop()
     }
     digitalWrite(pin_ValveVacuum, HIGH);
     delay(VACUUM_DELAY);
+    stepper.move(-STEPS_PER_MM * 2);
+    stepper.runToPosition();
+    delay(500);
+    stepper.move(STEPS_PER_MM * 2);
+    stepper.runToPosition();
+
     if (!rotateSwing(true))
     {
       state = ERROR;
