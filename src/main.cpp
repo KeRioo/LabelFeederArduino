@@ -19,6 +19,7 @@ EEPROMStorage<uint32_t> MAX_ACCELERATION(22, STEPS_PER_MM * 2500);
 EEPROMStorage<uint16_t> VACUUM_DELAY(27, 400);
 EEPROMStorage<uint16_t> PROBE_DELAY(30, 500);
 EEPROMStorage<uint16_t> CLAMP_DELAY(33, 300);
+EEPROMStorage<uint16_t> VACUUM_THRESHOLD(36, 300);
 
 // Pinout
 const uint8_t pin_ValveVacuum = 48;
@@ -65,7 +66,7 @@ enum HomingENUM
 
 // sensor -> { Probe, Z_Max, Z_Min }
 // return : 0 -> clear, 1 -> sensor, 2 -> Z_MIN/MAX
-uint8_t checkEndstops(HomingENUM sensor);
+uint8_t checkEndstop(HomingENUM sensor);
 
 // sensor -> { Probe, Z_Max, Z_Min }
 // return : false -> NG, true -> OK
@@ -128,6 +129,12 @@ void setup()
 
   state = ERROR;
   stepper.enableOutputs();
+
+  while (true)
+  {
+    Serial.println(analogRead(pin_VacuumSensor));
+    delay(50);
+  }
 
   // while (true)
   // {
@@ -194,13 +201,11 @@ void loop()
     if (!rotateSwing(true))
     {
       state = ERROR;
-      Serial.println("ERROR: Swing Blocked");
       break;
     }
     if (!stepperHomeTo(HomingENUM::Z_Min))
     {
       state = ERROR;
-      Serial.println("ERROR: Homing Failed");
       break;
     }
     firstAfterRestart = true;
@@ -212,7 +217,6 @@ void loop()
     if (!rotateSwing(false))
     {
       state = ERROR;
-      Serial.println("ERROR: Swing Blocked");
       break;
     }
     digitalWrite(pin_ValveVacuum, HIGH);
@@ -226,7 +230,7 @@ void loop()
     if (!rotateSwing(true))
     {
       state = ERROR;
-      Serial.println("ERROR: Swing Blocked");
+
       break;
     }
     digitalWrite(pin_ValveVacuum, LOW);
@@ -237,7 +241,6 @@ void loop()
     if (!stepperHomeTo(HomingENUM::Probe))
     {
       state = ERROR;
-      Serial.println("ERROR: Homing to Probe Failed");
       return;
     }
     deployClamp();
@@ -257,8 +260,7 @@ void loop()
 
     while (state != RESET)
     {
-      Serial.println("STATE: ERROR | send 'RESET' to continue");
-      Serial.print("CMD> ");
+      Serial.println("STATE<00>: ERROR | send 'RESET' to continue");
       while (Serial.available() == 0)
       {
       }
@@ -273,8 +275,7 @@ void loop()
 
     break;
   case IDLE:
-    Serial.println("STATE: IDLE");
-    Serial.print("CMD> ");
+    Serial.println("STATE<01>: IDLE");
     while (Serial.available() == 0)
     {
     }
@@ -299,7 +300,7 @@ void loop()
     }
     else
     {
-      Serial.println("ERROR: Unknown command");
+      Serial.println("ERROR<00>: Unknown command");
       state = ERROR;
       break;
     }
@@ -320,7 +321,7 @@ void retractProbe()
   delay(PROBE_DELAY);
 }
 
-uint8_t checkEndstops(HomingENUM sensor)
+uint8_t checkEndstop(HomingENUM sensor)
 {
   uint8_t pin;
   switch (sensor)
@@ -382,19 +383,19 @@ bool stepperHomeTo(HomingENUM sensor)
 
   while (homing_result)
   {
-    if (checkEndstops(sensor) == 1)
+    if (checkEndstop(sensor) == 1)
     {
       break;
     }
-    if (checkEndstops(sensor) == 2)
+    if (checkEndstop(sensor) == 2)
     {
-      Serial.println("STEPPER: Endstop triggered");
+      Serial.println("ERROR<01>: Limit switch was triggered");
       homing_result = false;
       break;
     }
     if (stepper.currentPosition() == stepper.targetPosition())
     {
-      Serial.println("STEPPER: Software limit trigger");
+      Serial.println("ERROR<02>: Stepper motor software limit");
       homing_result = false;
       break;
     }
@@ -424,7 +425,17 @@ bool rotateSwing(bool toRight, bool checkVacuum)
       swingDriver.Stop();
       return true;
     }
+
+    if (checkVacuum)
+    {
+      if (analogRead(pin_VacuumSensor) < VACUUM_THRESHOLD)
+      {
+        Serial.println("ERROR<03>: Low Vacuum during swing movement");
+        swingDriver.Stop();
+      }
+    }
   }
+  Serial.println("ERROR<04>: Swing Blocked");
   swingDriver.Stop();
   return false;
 }
@@ -458,6 +469,7 @@ void parseJSON()
   doc["VACUUM_DELAY"] = VACUUM_DELAY.get();
   doc["PROBE_DELAY"] = PROBE_DELAY.get();
   doc["CLAMP_DELAY"] = CLAMP_DELAY.get();
+  doc["VACUUM_THRESHOLD"] = VACUUM_THRESHOLD.get();
 
   serializeJson(doc, Serial);
   Serial.println();
@@ -484,6 +496,7 @@ void parseJSON()
   VACUUM_DELAY.set(doc["VACUUM_DELAY"].as<uint16_t>());
   PROBE_DELAY.set(doc["PROBE_DELAY"].as<uint16_t>());
   CLAMP_DELAY.set(doc["CLAMP_DELAY"].as<uint16_t>());
+  VACUUM_THRESHOLD.set(doc["VACUUM_THRESHOLD"].as<uint16_t>());
 
   // default: {"RUN_CURRENT_PERCENT":100,"STEPS_PER_MM":320,"MAX_TRAVEL":38400,"MAX_SPEED":1600,"HOMING_SPEED":320,"MAX_ACCELERATION":96000,"VACUUM_DELAY":400,"PROBE_DELAY":500,"CLAMP_DELAY":300}
 }
