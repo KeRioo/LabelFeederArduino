@@ -14,6 +14,7 @@ ERROR<01>: Limit switch was triggered
 ERROR<02>: Stepper motor software limit
 ERROR<03>: Low Vacuum during swing movement
 ERROR<04>: Swing Blocked
+ERROR<05>: Low vacuum on label pickup
 
 ## State list
 
@@ -40,14 +41,15 @@ JSON
 
 ## JSON Default Settings
 
-| Variable         | Value                  |
-| ---------------- | ---------------------- |
-| STEPS_PER_MM     | 160                    |
-| MAX_TRAVEL       | (STEPS_PER_MM \* 120)  |
-| MAX_SPEED        | (STEPS_PER_MM \* 15)   |
-| HOMING_SPEED     | (STEPS_PER_MM \* 3)    |
-| MAX_ACCELERATION | (STEPS_PER_MM \* 2500) |
-| VACUUM_DELAY     | 400                    |
-| PROBE_DELAY      | 500                    |
-| CLAMP_DELAY      | 300                    |
-| VACUUM_THRESHOLD | 300                    |
+| Variable            | Value |
+| ------------------- | ----- |
+| STEPS_PER_MM        | 160   |
+| RUN_CURRENT_PERCENT | 100   |
+| MAX_TRAVEL          | 120   |
+| MAX_SPEED           | 8     |
+| HOMING_SPEED        | 3     |
+| MAX_ACCELERATION    | 2500  |
+| VACUUM_DELAY        | 1300  |
+| PROBE_DELAY         | 500   |
+| CLAMP_DELAY         | 300   |
+| VACUUM_THRESHOLD    | 250   |
