@@ -14,7 +14,8 @@ ERROR<01>: Limit switch was triggered
 ERROR<02>: Stepper motor software limit
 ERROR<03>: Low Vacuum during swing movement
 ERROR<04>: Swing Blocked
-ERROR<05>: Low vacuum on label pickup
+ERROR<05>: No labels in the feeder
+ERROR<06>: No communication with stepper motor
 
 ## State list
 
@@ -32,7 +33,7 @@ JSON
 ```
            CMD> RESET          CMD> NEXT_LABEL
                   |                    |
-*Power ON* ---> ERROR ---> RESET ---> IDLE --->  FIRST_LABEL  --->  NEXT_LABEL ---> FIRST_LABEL
+*Power ON* ---> ERROR ---> RESET ---> IDLE ---> (FIRST_LABEL)  --->  NEXT_LABEL ---> FIRST_LABEL
                                        ┃              ┇                                  ┃
                                        ┃   (only after RESET state)                      ┃
                                        ┃              ┇                                  ┃
