@@ -1,18 +1,25 @@
 # LabelFeederArduino
 
 Arduino Mega
+
 TMC2209
+
 L293D
 
 [Arduino Hat Board](https://oshwlab.com/mateusz.przybyl.mp/powerdistributor2)
+
 [DB25 Distributor](https://oshwlab.com/mateusz.przybyl.mp/powerdistributor)
 
 ## Error list
 
 ERROR<00>: Unknown command
+
 ERROR<01>: Limit switch was triggered
+
 ERROR<02>: Stepper motor software limit
+
 ERROR<03>: Low Vacuum during swing movement
+
 ERROR<04>: Swing Blocked
 ERROR<05>: No labels in the feeder
 ERROR<06>: No communication with stepper motor
@@ -20,12 +27,15 @@ ERROR<06>: No communication with stepper motor
 ## State list
 
 STATE<00>: ERROR
+
 STATE<01>: IDLE
 
 ## Commands
 
 RESET
+
 NEXT_LABEL
+
 JSON
 
 ## Block diagram
