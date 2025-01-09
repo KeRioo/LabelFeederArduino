@@ -26,6 +26,12 @@ String readBuf;
 bool firstAfterRestart = true;
 uint8_t pickCounter = 0;
 
+/**
+ * Handles errors by setting the state to ERROR and printing a message.
+ * @param isError Indicates whether an error has occurred.
+ * @param message The error message to print (optional).
+ * @return True if no error, false otherwise.
+ */
 bool errorHandler(bool isError, String message = "")
 {
   if (!isError)
@@ -67,11 +73,6 @@ void setup()
   pinMode(pin_VacuumSensor, INPUT_PULLUP);
 
   state = ERROR;
-
-  // for (true;;)
-  // {
-
-  // }
 }
 
 void loop()
@@ -142,9 +143,6 @@ void loop()
 
     while (state != RESET)
     {
-      // while (Serial.available() == 0)
-      // {
-      // }
       Serial.println("STATE<00>: ERROR | send 'RESET' to continue");
 
       readBuf = Serial.readStringUntil('\n');
@@ -159,9 +157,6 @@ void loop()
     break;
   case IDLE:
     Serial.println("STATE<01>: IDLE");
-    // while (Serial.available() == 0)
-    // {
-    // }
 
     readBuf = Serial.readStringUntil('\n');
     Serial.println();

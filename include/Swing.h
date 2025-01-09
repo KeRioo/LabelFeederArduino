@@ -24,6 +24,12 @@ private:
 
 public:
     Swing();
+    /**
+     * Rotates the swing to the specified side.
+     * @param side The side to rotate to (Left or Right).
+     * @param checkVacuum Whether to check the vacuum sensor during rotation.
+     * @return True if the rotation was successful, false otherwise.
+     */
     bool rotate(SwingSideENUM side, bool checkVacuum = false);
 };
 

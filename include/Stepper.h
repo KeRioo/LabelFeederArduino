@@ -28,16 +28,30 @@ private:
 public:
     Stepper(/* args */);
 
+    /**
+     * Setup the stepper driver and motor.
+     * @return True if setup is successful, false otherwise.
+     */
     bool setup();
 
-    // sensor -> { Probe, Z_Max, Z_Min }
-    // return : 0 -> clear, 1 -> sensor, 2 -> Z_MIN/MAX
+    /**
+     * Check the endstop status for a given sensor.
+     * @param sensor The sensor to check (Probe, Z_Max, Z_Min).
+     * @return 0 if clear, 1 if sensor triggered, 2 if Z_MIN/MAX triggered.
+     */
     uint8_t checkEndstop(HomingENUM sensor);
 
-    // sensor -> { Probe, Z_Max, Z_Min }
-    // return : false -> NG, true -> OK
+    /**
+     * Home the stepper motor to a given sensor.
+     * @param sensor The sensor to home to (Probe, Z_Max, Z_Min).
+     * @return True if homing is successful, false otherwise.
+     */
     bool homeTo(HomingENUM sensor);
 
+    /**
+     * Perform a Z-hop movement.
+     * @param mm The distance in millimeters to hop.
+     */
     void z_hop(uint32_t mm);
 };
 
@@ -47,7 +61,6 @@ Stepper::Stepper(/* args */) : driver(), stepper(3200, STEPDIR)
 
 bool Stepper::setup()
 {
-
     // Stepper Driver config
     driver.setup(serial_stream);
 
@@ -67,7 +80,6 @@ bool Stepper::setup()
     }
 
     // Stepper Acceleration Config
-
     stepper.attach(pin_TMC_Step, pin_TMC_Dir);          // assign step/dir pins
     stepper.setSpeedSteps(MAX_SPEED, MAX_ACCELERATION); // initial value of speed
 
@@ -113,15 +125,12 @@ bool Stepper::homeTo(HomingENUM sensor)
     switch (sensor)
     {
     case Z_Max:
-
         dir = true;
         break;
     case Probe:
-
         dir = true;
         break;
     case Z_Min:
-
         dir = false;
         break;
     default:

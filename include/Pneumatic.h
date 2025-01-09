@@ -9,18 +9,27 @@
 #include "config_minima.h"
 #endif
 
+/**
+ * Deploys the probe by activating the corresponding valve.
+ */
 void deployProbe()
 {
     digitalWrite(pin_ValveProbe, HIGH);
     delay(PROBE_DELAY);
 }
 
+/**
+ * Retracts the probe by deactivating the corresponding valve.
+ */
 void retractProbe()
 {
     digitalWrite(pin_ValveProbe, LOW);
     delay(PROBE_DELAY);
 }
 
+/**
+ * Deploys the clamp by activating the corresponding valves.
+ */
 void deployClamp()
 {
     digitalWrite(pin_ValveClampSmall, HIGH);
@@ -29,6 +38,9 @@ void deployClamp()
     delay(CLAMP_DELAY);
 }
 
+/**
+ * Retracts the clamp by deactivating the corresponding valves.
+ */
 void retractClamp()
 {
     digitalWrite(pin_ValveClampBig, LOW);
@@ -37,6 +49,10 @@ void retractClamp()
     delay(CLAMP_DELAY);
 }
 
+/**
+ * Turns on the vacuum by activating the corresponding valve.
+ * @return True if the vacuum sensor detects low pressure, false otherwise.
+ */
 bool vacuumON()
 {
     digitalWrite(pin_ValveVacuum, HIGH);
@@ -52,6 +68,9 @@ bool vacuumON()
     return false;
 }
 
+/**
+ * Turns off the vacuum by deactivating the corresponding valve.
+ */
 void vacuumOFF()
 {
     digitalWrite(pin_ValveVacuum, LOW);
