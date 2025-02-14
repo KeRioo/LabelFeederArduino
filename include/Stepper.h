@@ -71,6 +71,11 @@ bool Stepper::setup()
     driver.setHardwareEnablePin(4);
     driver.enableCoolStep();
 
+    if (stepper_direction)
+    {
+        driver.enableInverseMotorDirection();
+    }
+
     driver.enable();
 
     if (not driver.isSetupAndCommunicating())

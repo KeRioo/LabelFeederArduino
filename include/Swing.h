@@ -41,7 +41,7 @@ Swing::Swing() : motor(pin_L293_A, pin_L293_B, pin_L293_Ena)
 bool Swing::rotate(SwingSideENUM side, bool checkVacuum)
 {
     uint32_t time = millis();
-    motor.SetMotorSpeed(side == Right ? 50 : -50);
+    motor.SetMotorSpeed(side == Right ? (swing_direction ? -50 : 50) : (swing_direction ? 50 : -50));
 
     while (millis() < time + 2000)
     {

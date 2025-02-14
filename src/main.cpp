@@ -47,8 +47,10 @@ bool errorHandler(bool isError, String message = "")
 
 void setup()
 {
+  config_handler();
   Serial.begin(115200);
   Serial.setTimeout(4294967295);
+
   while (Serial.availableForWrite() == 0)
   {
   }
